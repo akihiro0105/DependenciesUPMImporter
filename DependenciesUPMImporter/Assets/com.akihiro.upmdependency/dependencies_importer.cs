@@ -37,7 +37,9 @@ namespace com.akihiro.dependencies_importer
             }
             else
             {
+#if UNITY_2020_3_OR_NEWER
                 Client.Resolve();
+#endif
                 Debug.Log($"Complete {System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}");
             }
         }
