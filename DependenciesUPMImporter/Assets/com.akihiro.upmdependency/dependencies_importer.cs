@@ -24,6 +24,7 @@ namespace com.akihiro.dependencies_importer
         public static void LoadPackage()
         {
             Debug.Log($"Import {System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}");
+            EditorApplication.LockReloadAssemblies();
             importList();
         }
         private static void importList()
@@ -40,6 +41,7 @@ namespace com.akihiro.dependencies_importer
 #if UNITY_2020_3_OR_NEWER
                 Client.Resolve();
 #endif
+                EditorApplication.UnlockReloadAssemblies();
                 Debug.Log($"Complete {System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}");
             }
         }
