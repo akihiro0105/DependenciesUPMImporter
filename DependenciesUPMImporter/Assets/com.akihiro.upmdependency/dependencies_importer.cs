@@ -1,6 +1,4 @@
 #if UNITY_EDITOR
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -12,29 +10,48 @@ namespace com.akihiro.dependencies_importer
 {
     public class dependencies_importer
     {
-        private static List<string> PackageURLs = new List<string> {
+        private static string[] PackageURLs ={
             // GitHub, Azure DevOps, Unity, ローカルのUnity Package Manager用URLを追加
             "git+https://github.com/akihiro0105/UnityPackageManagerEditor.git?path=/Assets/com.akihiro.upmeditor/"
         };
 
         #region Importer
-        private static AddRequest request;
+        private static ListRequest listRequest;
+        private static List<string> urlList = new List<string>();
+        private static AddRequest addRequest;
 
         [InitializeOnLoadMethod]
         public static void LoadPackage()
         {
-            Debug.Log($"Import {System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}");
-            EditorApplication.LockReloadAssemblies();
-            importList();
+            listRequest = Client.List(true);
+            EditorApplication.update += listProgress;
         }
-        private static void importList()
+
+        private static void listProgress()
         {
-            var url = PackageURLs.FirstOrDefault();
-            if (!string.IsNullOrEmpty(url))
+            if (!listRequest.IsCompleted) return;
+            EditorApplication.update -= listProgress;
+            if (listRequest.Status == StatusCode.Failure) Debug.LogError($"Failure List {listRequest.Error.message}");
+            else
             {
-                PackageURLs.RemoveAt(0);
-                request = Client.Add(url);
-                EditorApplication.update += progress;
+                urlList = PackageURLs.Where(url => listRequest.Result.Where(item => item.packageId.Contains(url)).Count() == 0).ToList();
+                if (urlList.Count > 0)
+                {
+                    Debug.Log($"Import {System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}");
+                    EditorApplication.LockReloadAssemblies();
+                    addPackage();
+                }
+            }
+        }
+
+        private static void addPackage()
+        {
+            if (urlList.Count > 0)
+            {
+                Debug.Log($"Add {urlList[0]}");
+                addRequest = Client.Add(urlList[0]);
+                urlList.RemoveAt(0);
+                EditorApplication.update += addProgress;
             }
             else
             {
@@ -45,17 +62,13 @@ namespace com.akihiro.dependencies_importer
                 Debug.Log($"Complete {System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}");
             }
         }
-        private static void progress()
+
+        private static void addProgress()
         {
-            if (request.IsCompleted)
-            {
-                if (request.Status == StatusCode.Failure)
-                {
-                    Debug.LogError($"Failure {request.Error.message}");
-                }
-                EditorApplication.update -= progress;
-                importList();
-            }
+            if (!addRequest.IsCompleted) return;
+            EditorApplication.update -= addProgress;
+            if (addRequest.Status == StatusCode.Failure) Debug.LogError($"Failure Add {addRequest.Error.message}");
+            addPackage();
         }
         #endregion
     }
